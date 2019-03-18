@@ -1,0 +1,3 @@
+(executable
+ (name lcf)
+ (libraries core))
