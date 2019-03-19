@@ -1,0 +1,2 @@
+module Kernel = struct
+end
