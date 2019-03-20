@@ -38,7 +38,24 @@ module Context = struct
     | (p :: ps, i) -> p :: (ctx_rem ps (i - 1))
 end
 
+(* A sequent (ctx, prop) represents the judgement G => P. *)
 type sequent = Seq of Context.context * prop
+
+(* A hypothesis is just an index into the context. *)
+type hyp = int
+
+(* A derivation is a one-step unrolling of a proof. Used together with `unroll`. *)
+type 'a deriv =
+    DInit of hyp
+  | DTrueR
+  | DFalseL of hyp
+  | DConjR of 'a * 'a
+  | DConjL1 of 'a * hyp * hyp
+  | DConjL2 of 'a * hyp * hyp
+  | DDisjR1 of 'a
+  | DDisjR2 of 'a
+  | DDisjL of 'a * hyp * 'a * hyp
+  | DImpl of 'a * hyp * 'a * hyp * hyp
 
 let rec pprint_prop = function
   | True -> "T"

@@ -1,30 +1,16 @@
 open Defs
 open Defs.Context
 
+exception Kernel_err of string
+
 (* The abstract type of proofs. Remains abstract so that only the kernel can build proofs. *)
 type proof
 
-(* A hypothesis is just an index into the context. *)
-type hyp = int
-
-(* A derivation is a one-step unrolling of a proof. Used together with `unroll`. *)
-type 'a deriv =
-    Init of hyp
-  | TrueR
-  | FalseL
-  | ConjR of 'a * 'a
-  | ConjL1 of 'a * hyp * hyp
-  | ConjL2 of 'a * hyp * hyp
-  | DisjR1 of 'a
-  | DisjR2 of 'a
-  | DisjL of 'a * hyp * 'a * hyp
-  | Impl of 'a * hyp * 'a * hyp * hyp
+(* The sequent implied by the proof. *)
+val infer: proof -> sequent
 
 (* Do a one-step unrolling of the proof. A `proof deriv` is then a read-only view of the proof. *)
 val unroll: proof -> proof deriv
-
-(* The sequent implied by the proof. *)
-val infer: proof -> sequent
 
 (*
 ----------
