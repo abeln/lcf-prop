@@ -11,7 +11,7 @@ let infer (By (seq, _)) = seq
 
 let unroll (By (_, der)) = der
 
-let init (ctx, hyp) = List.nth_exn ctx hyp
+let init (ctx, hyp) = By (Seq (ctx, List.nth_exn ctx hyp), DInit hyp)
 
 let trueR ctx = By (Seq (ctx, True), DTrueR)
 
@@ -24,7 +24,7 @@ let kernel_assert rule cond =
   if (not cond) then raise (Kernel_err (rule ^ " does not apply"))
   else ()
 
-let conjR ((By ((Seq (ctx1, succ1)), _)) as der1) ((By ((Seq (ctx2, succ2)), _)) as der2) =
+let conjR (((By ((Seq (ctx1, succ1)), _)) as der1), ((By ((Seq (ctx2, succ2)), _)) as der2)) =
   kernel_assert "conjR" (ctx1 = ctx2); 
   By (Seq (ctx1, Conj (succ1, succ2)), DConjR (der1, der2))
 
@@ -47,10 +47,10 @@ let conjL2 ((By (Seq (ctx, prop), _)) as der, conj_hyp, right_hyp) =
    | _ -> raise (Kernel_err "conjL2 does not apply")
 
 
-let disjR1 (By (Seq (ctx, succ), _) as der) prop =
+let disjR1 ((By (Seq (ctx, succ), _) as der), prop) =
   By (Seq (ctx, Disj (succ, prop)), DDisjR1 der)
 
-let disjR2 (By (Seq (ctx, succ), _) as der) prop =
+let disjR2 ((By (Seq (ctx, succ), _) as der), prop) =
   By (Seq (ctx, Disj (prop, succ)), DDisjR2 der)
 
 let disjL (proof_left, left_hyp, proof_right, right_hyp) =
@@ -66,7 +66,27 @@ let disjL (proof_left, left_hyp, proof_right, right_hyp) =
   with
    | _ -> raise (Kernel_err "disjL does not apply")
 
+let implR ((By (Seq (ctx, succ), _) as der), hyp) =
+  try
+    let prop = List.nth_exn ctx hyp in
+    let ctx1 = Ctx.ctx_rem ctx hyp in
+    By (Seq (ctx1, Impl (prop, succ)), DImplR (der, hyp))
+  with
+  | _ -> (raise (Kernel_err "implR does not apply"))
 
-(* val implR: proof * hyp -> proof *)
-
-(* val implL: proof * hyp * proof * hyp * hyp -> proof *)
+let implL (proof1, impl_hyp1, proof2, impl_hyp2, succ_hyp2) =
+  try
+    let (By (Seq (ctx1, succ1), _)) = proof1 in
+    let (By (Seq (ctx2, succ2), _)) = proof2 in
+    let ctx1p = Ctx.ctx_rem ctx1 impl_hyp1 in
+    let ctx2p = Ctx.ctx_rem (Ctx.ctx_rem ctx2 impl_hyp2) succ_hyp2 in
+    kernel_assert "implL" (ctx1p = ctx2p);
+    let Impl (a1, b1) = List.nth_exn ctx1 impl_hyp1 in
+    kernel_assert "implL" (a1 = succ1);
+    let Impl (a2, b2) = List.nth_exn ctx2 impl_hyp2 in
+    kernel_assert "implL" (a1 = a2 && b1 = b2);
+    let b = List.nth_exn ctx2 succ_hyp2 in
+    kernel_assert "implL" (b2 = b);
+    By (Seq (ctx1, succ2), DImplL (proof1, impl_hyp1, proof2, impl_hyp2, succ_hyp2))
+  with
+  | _ -> (raise (Kernel_err "implL does not apply"))

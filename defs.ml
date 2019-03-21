@@ -55,7 +55,8 @@ type 'a deriv =
   | DDisjR1 of 'a
   | DDisjR2 of 'a
   | DDisjL of 'a * hyp * 'a * hyp
-  | DImpl of 'a * hyp * 'a * hyp * hyp
+  | DImplR of 'a * hyp
+  | DImplL of 'a * hyp * 'a * hyp * hyp
 
 let rec pprint_prop = function
   | True -> "T"
