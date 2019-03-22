@@ -21,6 +21,10 @@ let as_conj = function
   | Conj (l, r) -> (l, r)
   | _ -> raise (Refiner_err "can't deconstruct as conj")
 
+let as_disj = function
+  | Disj (l, r) -> (l, r)
+  | _ -> raise (Refiner_err "can't deconstruct as disj")
+
 let as_impl = function
   | Impl (ant, succ) -> (ant, succ)
   | _ -> raise (Refiner_err "can't deconstruct as impl")
@@ -77,9 +81,29 @@ let conjL2 hyp (Seq (ctx, succ)) =
   in
   ([Seq (ctx1, succ)], valid)
 
+let disjR1 (Seq (ctx, succ)) =
+  let (l, r) = as_disj succ in
+  let valid = fun p -> K.disjR1 (p, r) in
+  ([Seq (ctx, l)], valid)
+
+let disjR2 (Seq (ctx, succ)) =
+  let (l, r) = as_disj succ in
+  let valid = fun p -> K.disjR2 (p, l) in
+  ([Seq (ctx, r)], valid)
+
+let disjL hyp (Seq (ctx, succ)) =
+  let (l, r) = as_disj (List.nth_exn ctx hyp) in
+  let ctx_left = Ctx.ctx_add ctx l in
+  let ctx_right = Ctx.ctx_add ctx r in
+  let loc_left = Ctx.ctx_find ctx_left l in
+  let loc_right = Ctx.ctx_find ctx_right r in
+  let valid =
+    fun subgs -> match subgs with
+    | [proof_left, proof_right] -> K.disjL (proof_left, loc_left, proof_right, loc_right)
+    | _ -> raise (Refiner_err "can't apply disjL: expected two subgoals")
+  in
+  ([Seq (ctx_left, succ); Seq (ctx_right, succ)], valid)
+
 (* 
-val disjR1: rule
-val disjR2: rule
-val disjL: hyp -> rule
 val implR: rule
 val implL: hyp -> rule *)
