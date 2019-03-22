@@ -7,6 +7,22 @@ exception Kernel_err of string
 
 type proof = By of sequent * proof deriv
 
+(* Helpers *)
+
+let as_conj = function
+  | Conj (l, r) -> (l, r)
+  | _ -> raise (Kernel_err "can't deconstruct as conj")
+
+let as_impl = function
+  | Impl (ant, succ) -> (ant, succ)
+  | _ -> raise (Kernel_err "can't deconstruct as impl")
+
+let kernel_assert rule cond =
+  if (not cond) then raise (Kernel_err (rule ^ " does not apply"))
+  else ()
+
+(* Module implementation *)
+
 let infer (By (seq, _)) = seq
 
 let unroll (By (_, der)) = der
@@ -20,31 +36,27 @@ let falseL (ctx, hyp, prop) =
   | False -> By (Seq (ctx, prop), DFalseL hyp)
   | _ -> raise (Kernel_err "falseL does not apply")
 
-let kernel_assert rule cond =
-  if (not cond) then raise (Kernel_err (rule ^ " does not apply"))
-  else ()
-
 let conjR (((By ((Seq (ctx1, succ1)), _)) as der1), ((By ((Seq (ctx2, succ2)), _)) as der2)) =
   kernel_assert "conjR" (ctx1 = ctx2); 
   By (Seq (ctx1, Conj (succ1, succ2)), DConjR (der1, der2))
 
 let conjL1 ((By (Seq (ctx, prop), _)) as der, conj_hyp, left_hyp) =
   try
-    let Conj (l, _) = List.nth_exn ctx conj_hyp in
+    let (l, _) = as_conj (List.nth_exn ctx conj_hyp) in
     let left = List.nth_exn ctx left_hyp in
     kernel_assert "conjL1" (left = l);
     By (Seq (Ctx.ctx_rem ctx left_hyp, prop), DConjL1 (der, conj_hyp, left_hyp))
-   with
-   | _ -> raise (Kernel_err "conjL1 does not apply")
+  with
+  | _ -> raise (Kernel_err "conjL1 does not apply")
 
 let conjL2 ((By (Seq (ctx, prop), _)) as der, conj_hyp, right_hyp) =
   try
-    let Conj (_, r) = List.nth_exn ctx conj_hyp in
+    let (_, r) = as_conj (List.nth_exn ctx conj_hyp) in
     let right = List.nth_exn ctx right_hyp in
     kernel_assert "conjL2" (right = r);
     By (Seq (Ctx.ctx_rem ctx right_hyp, prop), DConjL2 (der, conj_hyp, right_hyp))
-   with
-   | _ -> raise (Kernel_err "conjL2 does not apply")
+  with
+  | _ -> raise (Kernel_err "conjL2 does not apply")
 
 
 let disjR1 ((By (Seq (ctx, succ), _) as der), prop) =
@@ -64,7 +76,7 @@ let disjL (proof_left, left_hyp, proof_right, right_hyp) =
     kernel_assert "disjL" (ctx_left1 = ctx_right1 && succ_left = succ_right);
     By (Seq (ctx_left1, Disj (prop_left, prop_right)), DDisjL (proof_left, left_hyp, proof_right, right_hyp))
   with
-   | _ -> raise (Kernel_err "disjL does not apply")
+  | _ -> raise (Kernel_err "disjL does not apply")
 
 let implR ((By (Seq (ctx, succ), _) as der), hyp) =
   try
@@ -81,9 +93,9 @@ let implL (proof1, impl_hyp1, proof2, impl_hyp2, succ_hyp2) =
     let ctx1p = Ctx.ctx_rem ctx1 impl_hyp1 in
     let ctx2p = Ctx.ctx_rem (Ctx.ctx_rem ctx2 impl_hyp2) succ_hyp2 in
     kernel_assert "implL" (ctx1p = ctx2p);
-    let Impl (a1, b1) = List.nth_exn ctx1 impl_hyp1 in
+    let (a1, b1) = as_impl (List.nth_exn ctx1 impl_hyp1) in
     kernel_assert "implL" (a1 = succ1);
-    let Impl (a2, b2) = List.nth_exn ctx2 impl_hyp2 in
+    let (a2, b2)= as_impl (List.nth_exn ctx2 impl_hyp2) in
     kernel_assert "implL" (a1 = a2 && b1 = b2);
     let b = List.nth_exn ctx2 succ_hyp2 in
     kernel_assert "implL" (b2 = b);

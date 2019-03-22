@@ -36,6 +36,14 @@ module Context = struct
     | ([], _) -> raise (Ctx_err "removing from empty context")
     | (_ :: ps, 0) -> ps
     | (p :: ps, i) -> p :: (ctx_rem ps (i - 1))
+
+  (* Find the index of a proposition within the context (or throw if not present). *)
+  let ctx_find ctx prop =
+    let rec find i = function
+    | [] -> raise (Ctx_err "prop not found in context")
+    | p :: ps -> if (p = prop) then i else find (i + 1) ps
+    in
+    find 0 ctx
 end
 
 (* A sequent (ctx, prop) represents the judgement G => P. *)
