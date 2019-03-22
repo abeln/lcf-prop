@@ -73,7 +73,7 @@ let conjL2 hyp (Seq (ctx, succ)) =
   let (l, r) = as_conj (List.nth_exn ctx hyp) in
   let ctx1 = Ctx.ctx_add ctx r in
   let loc_conj = Ctx.ctx_find_exn ctx1 (Conj (l, r)) in
-  let loc_right = Ctx.ctx_find_exn ctx1 l in
+  let loc_right = Ctx.ctx_find_exn ctx1 r in
   let valid =
     fun subgs -> match subgs with
     | [p] -> K.conjL2 (p, loc_conj, loc_right)

@@ -1,6 +1,5 @@
 open Core
 open Defs
-open Defs.Context
 open List
 
 module K = Kernel
@@ -56,8 +55,49 @@ struct
       let subgoal = hd_exn goals in
       apply_to_goal rule subgoal state
 
+  let pprint_goal (Seq (ctx, succ)) =
+    List.iter ctx ~f:(fun prop -> print_endline (pprint_prop prop));
+    print_endline "===============";
+    print_endline (pprint_prop succ)
+
+  let pprint_state st =
+    print_endline "\n\n\n";
+    match st with
+    | Done _ -> print_endline "QED □"
+    | FinalGoal goal -> pprint_goal goal
+    | Subgoal (goals, _, _, _) -> pprint_goal (hd_exn goals)
+
 end
 
+module St = State
+
+let to_hyp str = int_of_string str
+
+let to_rule cmd = match (String.split cmd ~on:' ') with
+| ["init"; hyp] -> R.init (to_hyp hyp)
+| ["trueR"] -> R.trueR
+| ["falseL"; hyp] -> R.falseL (to_hyp hyp)
+| ["conjR"] -> R.conjR
+| ["conjL1"; hyp] -> R.conjL1 (to_hyp hyp)
+| ["conjL2"; hyp] -> R.conjL2 (to_hyp hyp)
+| ["disjR1"] -> R.disjR1
+| ["disjR2"] -> R.disjR2
+| ["disjL"; hyp] -> R.disjL (to_hyp hyp)
+| ["implR"] -> R.implR
+| ["implL"; hyp] -> R.implL (to_hyp hyp)
+| _ -> raise (Invalid_argument cmd)
+
+let rec repl state =
+  St.pprint_state state;
+  print_endline "";
+  let cmd = In_channel.input_line_exn In_channel.stdin in
+  let rule = to_rule cmd in
+  match (St.apply rule state) with
+  | Error (msg) ->
+    print_endline msg;
+    repl state
+  | Ok (new_st) -> repl new_st
+
 let () =
-  print_endline (pprint_ctx [b_or_c; a_and_b]);
-  print_endline (pprint_ctx (ctx_add (ctx_add empty_ctx b_or_c) a_and_b))
+  let init_st = St.FinalGoal (Seq (Context.empty_ctx, Impl (Conj (Atom "A", Atom "B"), Conj (Atom "B", Atom "A")))) in
+  repl init_st
