@@ -60,8 +60,8 @@ let conjR (Seq (ctx, succ)) =
 let conjL1 hyp (Seq (ctx, succ)) =
   let (l, r) = as_conj (List.nth_exn ctx hyp) in
   let ctx1 = Ctx.ctx_add ctx l in
-  let loc_conj = Ctx.ctx_find ctx1 (Conj (l, r)) in
-  let loc_left = Ctx.ctx_find ctx1 l in
+  let loc_conj = Ctx.ctx_find_exn ctx1 (Conj (l, r)) in
+  let loc_left = Ctx.ctx_find_exn ctx1 l in
   let valid =
     fun subgs -> match subgs with
     | [p] -> K.conjL1 (p, loc_conj, loc_left)
@@ -72,8 +72,8 @@ let conjL1 hyp (Seq (ctx, succ)) =
 let conjL2 hyp (Seq (ctx, succ)) =
   let (l, r) = as_conj (List.nth_exn ctx hyp) in
   let ctx1 = Ctx.ctx_add ctx r in
-  let loc_conj = Ctx.ctx_find ctx1 (Conj (l, r)) in
-  let loc_right = Ctx.ctx_find ctx1 l in
+  let loc_conj = Ctx.ctx_find_exn ctx1 (Conj (l, r)) in
+  let loc_right = Ctx.ctx_find_exn ctx1 l in
   let valid =
     fun subgs -> match subgs with
     | [p] -> K.conjL2 (p, loc_conj, loc_right)
@@ -83,27 +83,52 @@ let conjL2 hyp (Seq (ctx, succ)) =
 
 let disjR1 (Seq (ctx, succ)) =
   let (l, r) = as_disj succ in
-  let valid = fun p -> K.disjR1 (p, r) in
+  let valid = fun subgs -> match subgs with
+    | [p] -> K.disjR1 (p, r)
+    | _ -> raise (Refiner_err "can't apply disjR1: expected one subgoal")
+  in
   ([Seq (ctx, l)], valid)
 
 let disjR2 (Seq (ctx, succ)) =
   let (l, r) = as_disj succ in
-  let valid = fun p -> K.disjR2 (p, l) in
+  let valid = fun subgs -> match subgs with
+    | [p] -> K.disjR2 (p, l)
+    | _ -> raise (Refiner_err "can't apply disjR2: expected one subgoal")
+  in
   ([Seq (ctx, r)], valid)
 
 let disjL hyp (Seq (ctx, succ)) =
   let (l, r) = as_disj (List.nth_exn ctx hyp) in
   let ctx_left = Ctx.ctx_add ctx l in
   let ctx_right = Ctx.ctx_add ctx r in
-  let loc_left = Ctx.ctx_find ctx_left l in
-  let loc_right = Ctx.ctx_find ctx_right r in
+  let loc_left = Ctx.ctx_find_exn ctx_left l in
+  let loc_right = Ctx.ctx_find_exn ctx_right r in
   let valid =
     fun subgs -> match subgs with
-    | [proof_left, proof_right] -> K.disjL (proof_left, loc_left, proof_right, loc_right)
+    | [proof_left; proof_right] -> K.disjL (proof_left, loc_left, proof_right, loc_right)
     | _ -> raise (Refiner_err "can't apply disjL: expected two subgoals")
   in
   ([Seq (ctx_left, succ); Seq (ctx_right, succ)], valid)
 
-(* 
-val implR: rule
-val implL: hyp -> rule *)
+let implR (Seq (ctx, succ)) =
+  let (l, r) = as_impl succ in
+  let ctx1 = Ctx.ctx_add ctx l in
+  let loc_left = Ctx.ctx_find_exn ctx1 l in
+  let valid =
+    fun subgs -> match subgs with
+    | [p] -> K.implR (p, loc_left)
+    | _ -> raise (Refiner_err "can't apply implR: expected one subgoal")
+  in
+  ([Seq (ctx1, r)], valid)
+
+let implL hyp (Seq (ctx, succ)) =
+  let (l, r) = as_impl (List.nth_exn ctx hyp) in
+  let ctx1 = Ctx.ctx_add ctx r in
+  let loc_impl = Ctx.ctx_find_exn ctx1 (Impl (l, r)) in
+  let loc_r = Ctx.ctx_find_exn ctx1 r in
+  let valid =
+    fun subgs -> match subgs with
+    | [proof_ant; proof_succ] -> K.implL (proof_ant, hyp, proof_succ, loc_impl, loc_r)
+    | _ -> raise (Refiner_err "can't apply implL: expected two subgoals")
+  in
+  ([Seq (ctx, l); Seq (ctx1, succ)], valid)
